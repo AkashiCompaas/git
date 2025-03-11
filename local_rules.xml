@@ -1,0 +1,1647 @@
+<!-- Local rules -->
+
+<!-- Modify it at your will. -->
+<!-- Copyright (C) 2015, Wazuh Inc. -->
+
+<!-- Example -->
+<group name="local,syslog,sshd,">
+
+  <!--
+  Dec 10 01:02:02 host sshd[1234]: Failed none for root from 1.1.1.1 port 1066 ssh2
+  -->
+  <rule id="100001" level="5">
+    <if_sid>5716</if_sid>
+    <srcip>1.1.1.1</srcip>
+    <description>sshd: authentication failed from IP 1.1.1.1.</description>
+    <group>authentication_failed,pci_dss_10.2.4,pci_dss_10.2.5,</group>
+  </rule>
+
+</group>
+
+<group name="venom_rat,syscheck">
+
+  <!-- Rogue svchost.exe creation -->
+  <rule id="100950" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\svchost\.exe</field>
+    <description>Potential Venom RAT activity detected: svchost.exe created at $(win.eventdata.targetFilename) by $(win.eventdata.image).</description>
+    <mitre>
+      <id>T1036</id>
+    </mitre>
+  </rule>
+
+  <!-- Registry key creation for persistence -->
+  <rule id="100951" level="12">
+    <if_sid>92300</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:(\\\\Users\\\\.+\\\\)</field>
+    <field name="win.eventdata.details" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\svchost\.exe</field>
+    <description>Potential Venom RAT activity detected:  $(win.eventdata.details) added itself to the Registry as a startup program to establish persistence.</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+  </rule>
+
+<!-- Suspicious .tmp.bat file creation -->
+  <rule id="100952" level="12">
+    <if_sid>92204</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Local\\\\Temp\\\\.+\.tmp\.bat</field>
+    <description>Potential Venom RAT activity detected: Suspicious .tmp.bat file $(win.eventdata.targetFilename) added to Temp folder by $(win.eventdata.image).</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+<!-- Suspicious .tmp.bat file run in command line-->
+  <rule id="100953" level="15">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)cmd\.exe</field>
+    <field name="win.eventdata.parentCommandLine" type="pcre2">(?i)\s\/C\s.*\.tmp\.bat</field>
+    <description>Venom RAT activity detected: Suspicious .tmp.bat file executed by cmd.</description>
+    <mitre>
+      <id>T1087</id>
+      <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<group name="malware_detection,fin7,">
+  <rule id="100002" level="0">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)excel.exe</field>
+    <description>Application $(win.eventdata.imageLoaded) loaded by excel.exe.</description>
+    <mitre>
+      <id>T1204</id>
+      <id>T1137</id>
+    </mitre>
+  </rule>
+ 
+  <rule id="100003" level="3">
+    <if_sid>100002</if_sid>
+    <field name="win.eventdata.imageLoaded" type="pcre2">(?i)(.xll|.xla|.xlam)</field>
+    <description>Add-in $(win.eventdata.originalFileName) loaded by excel.exe.</description>
+    <mitre>
+      <id>T1137</id>
+      <id>T1137.001</id>
+    </mitre>
+  </rule>
+ 
+  <rule id="100004" level="7">
+    <if_sid>100003</if_sid>
+    <field name="win.eventdata.signed" type="pcre2">^false$</field>
+    <description>Unsigned add-in $(win.eventdata.originalFileName) loaded by excel.exe. Possible malicious activity.</description>
+    <mitre>
+      <id>T1204</id>
+      <id>T1204.002</id>
+      <id>T1137</id>
+      <id>T1137.001</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="malware_detection,fin7,">
+  <rule id="100005" level="0">
+    <if_sid>61600</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)excel.exe</field>
+    <field name="win.system.eventID" type="pcre2">^22$</field>
+    <description>Excel made a network request.</description>
+  </rule>
+ 
+  <rule id="100006" level="15">
+    <if_sid>100005</if_sid>
+    <field name="win.eventdata.queryName" type="pcre2">(?i)(physiciansofficenews.com|thechinastyle.com|divorceradio.com)</field>
+    <description>Excel made a network request to JSSLoader dropper domains.</description>
+    <mitre>
+      <id>T1105</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="malware_detection,fin7,">
+  <rule id="100007" level="0">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)excel.exe</field>
+    <description>$(win.eventdata.image) Process launched by excel.</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+ 
+  <rule id="100008" level="7">
+    <if_sid>100007</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i).tmp</field>
+    <description>$(win.eventdata.image) executable masquerading as a TMP file was launched by excel. Possible FIN7 JSSLoader execution.</description>
+    <mitre>
+      <id>T1036</id>
+      <id>T1059</id>
+      <id>T1059.005</id>
+    </mitre>
+  </rule>
+ 
+  <rule id="100009" level="15">
+    <if_sid>100008</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)DNA</field>
+    <description>$(win.eventdata.image) executable masquerading as a .TMP file launched by excel. DNA prefix is typically associated with FIN7 JSSLoader.</description>
+    <mitre>
+      <id>T1036</id>
+      <id>T1059</id>
+      <id>T1059.005</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="syscheck,strrat_detection_rule,">
+<!-- STRRAT downloads a system-hook Java file for recording keystrokes -->
+  <rule id="100050" level="12">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)^c:\\users.+lib\\system-hook.+jar$</field>
+    <description>Possible STRRAT malware detected. $(file) was downloaded on the endpoint</description>
+    <mitre>
+      <id>T1056.001</id>
+    </mitre>
+  </rule>
+<!-- STRRAT poses as ransomware -->
+  <rule id="100051" level="8">
+    <if_sid>550,554</if_sid>
+    <field name="file" type="pcre2">(?i)c:\\users.+(documents|desktop|downloads).+crimson</field>
+    <description>Possible STRRAT malware detected. The .crimson extension has been appended to $(file)</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+  </rule>
+<!-- STRRAT creates a lock file -->
+  <rule id="100052" level="12">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)^c:\\users.+\\\d{1,}lock\.file$</field>
+    <description>Possible STRRAT malware detected. $(file) was created on the endpoint</description>
+  </rule>
+<!-- STRRAT downloads Java files -->
+  <rule id="100053" level="12">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)^c:\\users.+lib\\(jna\-platform|sqlite).+jar$</field>
+    <description>Possible STRRAT malware detected. $(file) was downloaded on the endpoint</description>
+    <mitre>
+      <id>T1407</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="syscheck,strrat_detection_rule,">
+<!-- STRRAT creates a scheduled task called Skype -->
+  <rule id="100054" level="0">
+    <if_sid>530</if_sid>
+    <match>^ossec: output: 'finding_skype'</match>
+    <description>A scheduled task called Skype is created</description>
+  </rule>
+<!-- STRRAT maintains persistence -->
+  <rule id="100055" level="12" ignore="720">
+    <if_sid>100054</if_sid>
+    <match type="pcre2">(?i)Skype.+running</match>
+    <description>Possible STRRAT malware detected. Malware has achieved persistence</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+  </rule>
+</group>
+
+<group name="blackbasta,">
+  <rule id="100010" level="3">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)(\\\\Temp\\\\dlaksjdoiwq.jpg|\\\\Temp\\\\fkdjsadasd.ico)</field>
+    <description>The file $(win.eventdata.targetFilename) which has been associated with black basta malware was created in the TEMP directory. Possible Black basta ransomware activity.</description>
+  </rule>
+
+<rule id="100012" level="5">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)vssadmin.exe.+delete.+shadows</field>
+    <description>Vssadmin.exe was used to delete a shadow copy. Possible ransomware activity.</description>
+</rule>
+
+<rule id="100013" level="3">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:(\\\\programdata\\.+readme\.txt)</field>
+    <description>The file $(win.eventdata.targetFilename) was created.</description>
+</rule>
+
+  <rule id="100014" level="15" timeframe="100" frequency="2">
+    <if_matched_sid>100013</if_matched_sid>
+    <description>Readme.txt file has been created in multiple system directories in a short timeframe. Possible ransomware activity.</description>
+  </rule>
+</group>
+
+<group name="syscheck,malware,">
+
+  <rule id="100008" level="10">
+    <if_sid>554</if_sid>
+    <field name="sha256">5b56c5d86347e164c6e571c86dbf5b1535eae6b979fede6ed66b01e79ea33b7b</field>
+    <description>Malware Hash Match: Pandora Ransomware Executable Detected</description>
+  </rule>
+
+</group>
+
+<group name="windows,sysmon">
+
+  <rule id="100009" level="12">
+    <if_group>windows</if_group>
+    <field name="win.system.eventID">1</field>
+    <match>vssadmin.exe delete shadows</match>
+    <description>[Possible Ransomware] Suspicious vssadmin Process Launched!</description>
+  </rule>
+
+</group>
+
+<group name="windows,sysmon">
+
+  <rule id="160010" level="10">
+    <if_group>windows,sysmon</if_group> 
+    <field name="win.eventdata.eventType" type="pcre2" >SetValue</field>
+    <field name="win.eventdata.targetObject" type="pcre2" >\\\\SOFTWARE\\\\Sysinternals\\\\PsExec\\\\EulaAccepted</field>
+    <options>no_full_log</options>
+    <description>PsExec EULA registry found on $(win.system.computer)</description>
+      <mitre>
+        <id>T1112</id>
+      </mitre>
+  </rule>
+  
+  <rule id="160011" level="10">
+    <if_group>windows,sysmon</if_group> 
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\PSEXESVC</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^SetValue$</field>
+    <field name="win.eventdata.user" type="pcre2" >NT AUTHORITY\\\\SYSTEM</field>
+    <options>no_full_log</options> 
+    <description>PsExec service running as $(win.eventdata.user) has been created on $(win.system.computer)</description>
+      <mitre>
+        <id>T1543.003</id>
+      </mitre>
+  </rule>  
+  
+  <rule id="160012" level="10">
+    <if_group>windows,sysmon</if_group> 
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\PSEXESVC</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^DeleteKey$</field>
+    <field name="win.eventdata.user" type="pcre2" >NT AUTHORITY\\\\SYSTEM</field>
+    <options>no_full_log</options>
+    <description>PsExec service running as $(win.eventdata.user) has been deleted on $(win.system.computer)</description>
+      <mitre>
+        <id>T1543.003</id>
+      </mitre>
+  </rule>
+  
+  <rule id="160013" level="10">
+    <if_group>windows,sysmon</if_group> 
+    <field name="win.eventdata.eventType" type="pcre2" >CreatePipe</field>
+    <field name="win.eventdata.image" type="pcre2" >\\\\PSEXESVC.exe</field>
+    <match type="pcre2">(?i)(PSEXESVC|stdin|stdout|stderr)</match>
+    <field name="win.eventdata.user" type="pcre2" >NT AUTHORITY\\\\SYSTEM</field>
+    <options>no_full_log</options> 
+    <description>PsExec named pipe running as $(win.eventdata.user) has been found on $(win.system.computer)</description>
+      <mitre>
+        <id>T1570</id>
+      </mitre>
+  </rule>
+
+</group>
+
+<group name="threat_intel,">
+  <rule id="100623" level="10">
+     <field name="integration">opencti</field>
+     <description>OpenCTI Threat Intelligence Matched</description>
+     <group>opencti,</group>
+     <options>no_full_log</options>
+  </rule>
+
+  <rule id="100624" level="5">
+     <if_sid>100623</if_sid>
+     <field name="opencti.error">\.+</field>
+     <description>OpenCTI - Error connecting to API</description>
+     <group>opencti,opencti_error,</group>
+  </rule>
+
+  <rule id="100625" level="12">
+     <if_sid>100623</if_sid>
+     <field name="opencti.id">\.+</field>
+     <description>OpenCTI - IoC match: $(opencti.value)</description>
+     <group>opencti,opencti_alert,</group>
+  </rule>
+</group>
+
+<group name="windows,powershell,">
+
+  <rule id="100201" level="8">
+    <if_sid>60009</if_sid>
+    <field name="win.eventdata.payload" type="pcre2">(?i)CommandInvocation</field>
+    <field name="win.system.message" type="pcre2">(?i)EncodedCommand|FromBase64String|EncodedArguments|-e\b|-enco\b|-en\b</field>
+    <description>Encoded command executed via PowerShell.</description>
+    <mitre>
+      <id>T1059.001</id>
+      <id>T1562.001</id>
+    </mitre>
+  </rule>
+  
+  <rule id="100202" level="4">
+    <if_sid>60009</if_sid>
+    <field name="win.system.message" type="pcre2">(?i)blocked by your antivirus software</field>
+    <description>Windows Security blocked malicious command executed via PowerShell.</description>
+    <mitre>
+      <id>T1059.001</id>  
+    </mitre>
+  </rule>
+
+  <rule id="100203" level="10">
+    <if_sid>60009</if_sid>
+    <field name="win.eventdata.payload" type="pcre2">(?i)CommandInvocation</field>    
+    <field name="win.system.message" type="pcre2">(?i)Add-Persistence|Find-AVSignature|Get-GPPAutologon|Get-GPPPassword|Get-HttpStatus|Get-Keystrokes|Get-SecurityPackages|Get-TimedScreenshot|Get-VaultCredential|Get-VolumeShadowCopy|Install-SSP|Invoke-CredentialInjection|Invoke-DllInjection|Invoke-Mimikatz|Invoke-NinjaCopy|Invoke-Portscan|Invoke-ReflectivePEInjection|Invoke-ReverseDnsLookup|Invoke-Shellcode|Invoke-TokenManipulation|Invoke-WmiCommand|Mount-VolumeShadowCopy|New-ElevatedPersistenceOption|New-UserPersistenceOption|New-VolumeShadowCopy|Out-CompressedDll|Out-EncodedCommand|Out-EncryptedScript|Out-Minidump|PowerUp|PowerView|Remove-Comments|Remove-VolumeShadowCopy|Set-CriticalProcess|Set-MasterBootRecord</field>
+    <description>Risky CMDLet executed. Possible malicious activity detected.</description>
+    <mitre>
+      <id>T1059.001</id>  
+    </mitre>
+  </rule>
+
+  <rule id="100204" level="8">
+    <if_sid>91802</if_sid>
+    <field name="win.eventdata.scriptBlockText" type="pcre2">(?i)mshta.*GetObject|mshta.*new ActiveXObject</field>
+    <description>Mshta used to download a file. Possible malicious activity detected.</description>
+    <mitre>
+      <id>T1059.001</id>  
+    </mitre>
+  </rule>
+
+  <rule id="100205" level="5">
+    <if_sid>60009</if_sid>
+    <field name="win.eventdata.contextInfo" type="pcre2">(?i)ExecutionPolicy bypass|exec bypass</field>
+    <description>PowerShell execution policy set to bypass.</description>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100206" level="5">
+    <if_sid>60009</if_sid>
+    <field name="win.eventdata.contextInfo" type="pcre2">(?i)Invoke-WebRequest|IWR.*-url|IWR.*-InFile</field>
+    <description>Invoke Webrequest executed, possible download cradle detected.</description>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+  </rule>
+
+</group>
+
+<group name="windows,sysmon">
+  <rule id="100200" level="12">
+    <if_sid>61610</if_sid>
+    <description>Possible process injection activity detected from "$(win.eventdata.sourceImage)" on "$(win.eventdata.targetImage)"</description>
+    <mitre>
+      <id>T1055.001</id>
+    </mitre>
+  </rule>
+ 
+  <rule id="100100" level="0">
+    <if_sid>100200</if_sid>
+    <field name="win.eventdata.sourceImage" type="pcre2">(C:\\\\Windows\\\\system32)|chrome.exe</field>
+    <description>Ignore Windows binaries and Chrome</description>
+  </rule>
+</group>
+
+<group name="sfx_archives">
+
+  <rule id="100102" level="10">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.CommandLine" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar_].*sfx.*\\*|.*\\7z.*</field>
+    <description>SFX archive command, $(win.eventdata.CommandLine) invoked the application $(win.eventdata.OriginalFileName).</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+  </rule>
+  
+  <rule id="100103" level="10">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.CurrentDirectory" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar_].*sfx.*\\*|.*\\7z.*</field>
+    <description>SFX archive command, $(win.eventdata.CommandLine) executed from $(win.eventdata.CurrentDirectory).</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+  </rule>
+
+  <rule id="100104" level="10">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar_].*sfx.*\\*|.*\\7z.*</field>
+    <description>The file $(win.eventdata.targetFilename) has been created by $(win.eventdata.image). SFX archive activity detected.</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+  </rule>
+
+  <rule id="100105" level="10">
+    <if_sid>92213</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar_].*sfx.*\\*|.*\\7z.*</field>
+    <description>The file $(win.eventdata.targetFilename) has been created by $(win.eventdata.image). SFX archive activity detected.</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+  </rule>
+  
+  <rule id="100106" level="10">
+    <if_sid>61615</if_sid>
+    <field name="win.eventdata.eventType" type="pcre2" >^SetValue$</field>
+    <field name="win.eventdata.Image" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar].*sfx.*\\.*</field>
+    <description>The image, $(win.eventdata.image) made a change to the registry at $(win.eventdata.targetObject). SFX archive activity.</description>   
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+  </rule>
+  
+  <rule id="100107" level="10">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.ImageLoaded" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar].*sfx.*exe</field>
+    <description>The image $(win.eventdata.image) loaded a file $(win.eventdata.imageLoaded). SFX archive activity detected.</description>
+  </rule>
+  
+  <rule id="100108" level="10">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.Image" type="pcre2">(?i)[C-Z]:.*.\\[7ZipRar].*sfx.*exe</field>
+    <description>The suspicious image, $(win.eventdata.image), loaded the executable $(win.eventdata.imageLoaded). SFX archive activity detected.</description>
+  </rule>
+
+</group>
+<group name="windows,sysmon,">
+ 
+  <rule id="115006" level="6">
+    <if_group>windows</if_group>
+    <field name="win.eventdata.ruleName" type="pcre2">^technique_id=T1053,technique_name=Scheduled Task$</field>
+    <field name="win.eventdata.eventType" type="pcre2">^CreateKey$</field>
+    <description>A Newly Scheduled Task has been Detected on $(win.system.computer)</description>
+    <mitre>
+        <id>T1053</id>
+    </mitre>
+  </rule>
+
+  <rule id="115007" level="0">
+    <if_sid>115006</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2">^HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows NT\\\\CurrentVersion\\\\Schedule\\\\TaskCache\\\\Tree\\\\Microsoft\\\\Windows\\\\UpdateOrchestrator$</field>
+    <description>Suppression rule for scheduled task created by update orchestrator</description>
+  </rule>
+
+</group>
+
+<group name="windows,sysmon,">
+
+<!-- Command Prompt reading and executing the contents of a file  -->
+  <rule id="100100" level="12">
+    <if_sid>92004</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)cmd\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)cmd\.exe.+((\/r)|(\/v\.+\/c)|(\/c)).*cmd</field>
+    <description>Possible Raspberry Robin execution: Command Prompt reading and executing the contents of a CMD file on $(win.system.computer)</description>
+    <mitre>
+      <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+<!-- msiexec.exe downloading and executing packages -->
+  <rule id="100101" level="7">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)msiexec\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)msiexec.*(\/q|\-q|\/i|\-i).*(\/q|\-q|\/i|\-i).*http[s]{0,1}\:\/\/.+[.msi]{0,1}</field>
+    <description>msiexec.exe downloading and executing packages on $(win.system.computer)</description>
+    <mitre>
+      <id>T1218.007</id>
+    </mitre>
+  </rule>
+
+<!-- This rule matches connections URLs that match the Raspberry Robin URL format -->
+  <rule id="100102" level="12">
+    <if_sid>100101</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)m.*s.*i.*e.*x.*e.*c.*(-.*q|\/.*q|\-.*i|\/.*i).*(-.*i|\/.*i|\-.*q|\/.*q).*http[s]{0,1}\:\/\/[a-zA-Z0-9]{2,4}\.[a-zA-Z0-9]{2,6}\:8080\/[a-zA-Z0-9]+\/.*?(?:-|\=|\?).*?</field>
+    <description>Possible Raspberry Robin execution: msiexec.exe downloading and executing packages on $(win.system.computer)</description>
+    <mitre>
+      <id>T1218.007</id>
+    </mitre>
+  </rule> 
+
+<!-- Bypass User Account Control using Fodhelper  -->
+  <rule id="100103" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.originalFileName" type="pcre2">(?i)(cmd|powershell|rundll32)\.exe</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)fodhelper\.exe</field>
+    <description>Use of fodhelper.exe to bypass UAC and execute malicious software</description>
+    <mitre>
+        <id>T1548.002</id>
+    </mitre>
+  </rule>
+
+<!-- Legitimate Windows utilities used to load DLLs : Execute Arbitrary DLL  -->
+  <rule id="100104" level="12">
+    <if_sid>61603</if_sid>
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(odbcconf(\.exe)??\s+((\/s)|(-s))??.*((\/a)|(-a)) \{regsvr)|((rundll32\.exe|shell32).*shellexec_rundll.*(odbcconf\.exe|msiexec|control\.exe))</field>
+    <description>Possible Raspberry Robin execution: Legitimate Windows utilities loading DLLs on $(win.system.computer).</description>
+    <mitre>
+      <id>T1218.008</id>
+    </mitre>
+  </rule> 
+
+<!-- Network connections from the command line with no parameters  -->
+  <rule id="100105" level="10">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(regsvr32\.exe|rundll32\.exe|dllhost\.exe).*\\";document.write\(\);GetObject\(\\"script:.*\).Exec\(\)</field>
+    <description>Possible Raspberry Robin execution: Network connections from the command line with no parameters on $(win.system.computer)</description>
+    <mitre>
+      <id>T1218.011</id>
+    </mitre>
+  </rule> 
+
+</group>
+
+<group name="crosslock,">
+<!-- Detects when CrossLock ransomware creates ransom notes. -->
+  <rule id="100201" level="12" timeframe="50" frequency="2">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[C-Z]:.*.CrossLock.*---.txt</field>
+    <description>The file $(win.eventdata.targetFilename) has been created in multiple directories. CrossLock ransomware detected.</description>
+    <mitre>
+      <id>T1486</id>
+    </mitre>
+  </rule>
+
+<!-- Detects when CrossLock deletes the oldest system state backup on the system. -->
+  <rule id="100202" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)wbadmin\s\sDELETE\sSYSTEMSTATEBACKUP\s-deleteOldest</field>
+     <description>Suspicious command to delete the oldest system state backup executed. Possible ransomware activity.</description>
+     <mitre>
+       <id>T1490</id>
+     </mitre>
+  </rule>
+
+<!-- Detects when CrossLock deletes the system state backup on the system. -->
+  <rule id="100203" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)wbadmin\s\sDELETE\sSYSTEMSTATEBACKUP</field>
+     <description>Suspicious command to delete system state backup executed. Possible ransomware activity.</description>
+     <mitre>
+       <id>T1490</id>
+     </mitre>
+  </rule>
+
+  <rule id="100204" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)wevtutil\s\scl\sapplication</field>
+     <description>Windows application event deleted. Possible ransomware activity detected.</description>
+     <mitre>
+       <id>T1070.001</id>
+     </mitre>
+  </rule>
+
+  <rule id="100205" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)wevtutil\s\scl\ssecurity</field>
+     <description>Windows security event logs deleted. Possible ransomware activity detected.</description>
+     <mitre>
+       <id>T1070.001</id>
+     </mitre>
+  </rule>
+
+  <rule id="100206" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)bcdedit\s\s\/set\s{default}\sbootstatuspolicy\signoreallfailures</field>
+     <description>Boot status policy set to ignore all failures. Possible ransomware activity detected.</description>
+     <mitre>
+       <id>T1490</id>
+     </mitre>
+  </rule>
+
+  <rule id="100207" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)wevtutil\s\scl\ssystem</field>
+     <description>Windows system event logs deleted. Possible ransomware activity detected.</description>
+     <mitre>
+       <id>T1070.001</id>
+     </mitre>
+  </rule>
+
+  <rule id="100208" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)bcdedit\s\s\/set\s{default} recoveryenabled\sNo</field>
+     <description>System recovery disabled. Possible ransomware detected.</description>
+     <mitre>
+       <id>T1490</id>
+     </mitre>
+  </rule>
+
+  <rule id="100209" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)wbadmin\s\sdelete\scatalog\s-quiet</field>
+     <description>System backup catalog deleted. Possible ransomware activity detected.</description>
+     <mitre>
+       <id>T1490</id>
+     </mitre>
+  </rule>
+
+  <rule id="100210" level="12">
+     <if_sid>92032</if_sid>
+     <field name="win.eventdata.CommandLine" type="pcre2">(?i)vssadmin\s\sdelete\sshadows\s\/all\s\/quiet</field>
+     <description>Shadow copies have been deleted. Possible ransomware detected.</description>
+     <mitre>
+       <id>T1490</id>
+     </mitre>
+  </rule>
+  
+</group>
+
+<group name="virustotal,">
+  <rule id="110006" level="12">
+    <if_sid>657</if_sid>
+    <match>Successfully removed threat</match>
+    <description>$(parameters.program) removed threat located at $(parameters.alert.data.virustotal.source.file)</description>
+  </rule>
+
+  <rule id="110007" level="12">
+    <if_sid>657</if_sid>
+    <match>Error removing threat</match>
+    <description>Error removing threat located at $(parameters.alert.data.virustotal.source.file)</description>
+  </rule>
+</group>
+
+<group name="attack,">
+    <rule id="100100" level="10">
+      <if_group>web|attack|attacks</if_group>
+      <list field="srcip" lookup="address_match_key">etc/lists/blacklist-alienvault</list>
+      <description>IP in black list.</description>
+    </rule>
+</group>
+
+<group name="asyncrat,">
+
+<!-- AsyncRAT execution -->
+<rule id="100401" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.Image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.OriginalFileName" type="pcre2">Stub\.exe</field>
+    <description>AsyncRAT executed.</description>
+    <mitre>
+        <id>T1204</id>
+    </mitre>
+</rule>
+
+<!-- DLL process injection -->
+<rule id="100402" level="12">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.Image" type="pcre2">.*\.exe</field>
+    <field name="win.eventdata.ImageLoaded" type="pcre2">(?i)[c-z]:\\\\Windows\\\\SysWOW64\\\\mscoree\.dll</field>
+    <description>Potential AsyncRAT activity detected: Process $(win.eventdata.ImageLoaded) is injected on $(win.system.computer).</description>
+    <mitre>
+        <id>T1055.001</id>
+    </mitre>
+</rule>
+
+<rule id="100403" level="12">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.Image" type="pcre2">.*\.exe</field>
+    <field name="win.eventdata.ImageLoaded" type="pcre2">(?i)[c-z]:\\\\Windows\\\\Microsoft\.NET\\\\Framework\\\\v4\.0\.30319\\\\mscoreei\.dll</field>
+    <description>Potential AsyncRAT activity detected: Process$(win.eventdata.ImageLoaded) is injected on $(win.system.computer).</description>
+    <mitre>
+        <id>T1055.001</id>
+    </mitre>
+</rule>
+
+<rule id="100404" level="12">
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.Image" type="pcre2">.*\.exe</field>
+    <field name="win.eventdata.ImageLoaded" type="pcre2">(?i)[c-z]:\\\\Windows\\\\Microsoft\.NET\\\\Framework\\\\v4\.0\.30319\\\\clrjit\.dll</field>
+    <description>Potential AsyncRAT activity detected: Process $(win.eventdata.ImageLoaded) is injected on $(win.system.computer).</description>
+    <mitre>
+        <id>T1055.001</id>
+    </mitre>
+</rule>
+
+<!-- Registry creation for persistent -->
+<rule id="100405" level="15">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.EventType" type="pcre2">^CreateKey$</field>
+    <field name="win.eventdata.Image" type="pcre2">(?i)[c-z]:\\\\Windows\\\\System32\\\\svchost\.exe</field>
+    <field name="win.eventdata.TargetObject" type="pcre2">HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\[A-Za-z0-9]+</field>
+    <description>Suspicious registry key creation detected on $(win.system.computer).</description>
+    <mitre>
+        <id>T1543</id>
+    </mitre>
+</rule>
+
+</group>
+
+<group name="syscheck,malware,">
+
+  <rule id="110001" level="10">
+    <if_group>syscheck</if_group>
+    <field name="sha256">a196c6b8ffcb97ffb276d04f354696e2391311db3841ae16c8c9f56f36a38e92</field>
+    <description>Malware Hash Match: WhisperGate Stage 1 IOC Detected</description>
+    <mitre>
+      <id>T1204.002</id>
+    </mitre>
+  </rule>
+
+  <rule id="110002" level="10">
+    <if_group>syscheck</if_group>
+    <field name="sha256">dcbbae5a1c61dbbbb7dcd6dc5dd1eb1169f5329958d38b58c3fd9384081c9b78</field>
+    <description>Malware Hash Match: WhisperGate Stage 2 IOC Detected</description>
+    <mitre>
+      <id>T1204.002</id>
+    </mitre>
+  </rule>
+
+  <rule id="110003" level="10">
+    <if_group>syscheck</if_group>
+    <field name="sha256" type="pcre2">9ef7dbd3da51332a78eff19146d21c82957821e464e8133e9594a07d716d892d|923eb77b3c9e11d6c56052318c119c1a22d11ab71675e6b95d05eeb73d1accd6</field>
+    <description>Malware Hash Match: WhisperGate Stage 3 IOC Detected</description>
+    <mitre>
+      <id>T1204.002</id>
+    </mitre>
+  </rule>
+  
+</group>
+
+<group name="windows">
+ 
+ <rule id="100002" level="0">
+  <if_sid>18101</if_sid>
+  <id>2003</id>
+  <description>Firewall configuration changed</description>
+</rule>
+<rule id="100003" level="3">
+  <if_sid>100002</if_sid>
+  <regex>Type: Enable \.* Value: Yes</regex>
+  <description>Firewall enabled for private/domain profile</description>
+</rule>
+<rule id="100004" level="3">
+  <if_sid>100003</if_sid>
+  <regex>Public profile</regex>
+  <description>Firewall enabled for public profile</description>
+</rule>
+<rule id="100005" level="3">
+  <if_sid>100002</if_sid>
+  <regex>Type: Enable \.* Value: No</regex>
+  <description>Firewall disabled for private/domain profile</description>
+</rule>
+<rule id="100006" level="4">
+  <if_sid>100005</if_sid>
+  <regex>Public profile</regex>
+  <description>Firewall disabled for public profile</description>
+</rule>
+<rule id="100007" level="3">
+  <if_sid>18101</if_sid>
+  <id>2004</id>
+  <description>Firewall rule created</description>
+</rule>
+<rule id="100008" level="3">
+  <if_sid>18101</if_sid>
+  <id>2005</id>
+  <description>Firewall rule modified</description>
+</rule>
+<rule id="100009" level="3">
+  <if_sid>18101</if_sid>
+  <id>2006</id>
+  <description>Firewall rule deleted</description>
+</rule>
+
+</group>
+
+<group name="lime_rat,sysmon,">
+
+  <!-- Rogue create netflix.exe creation -->
+  <rule id="100024" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\checker netflix\.exe</field>
+    <description>Potential LimeRAT activity detected: checker netflix.exe created at $(win.eventdata.targetFilename) by $(win.eventdata.image).</description>
+    <mitre>
+      <id>T1036</id>
+    </mitre>
+  </rule>
+
+  <!-- Registry key creation for persistence -->
+  <rule id="100025" level="12">
+    <if_group>sysmon</if_group>
+    <field name="win.eventdata.details" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\checker netflix\.exe</field>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKU\\\\.+\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\checker netflix\.exe</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^SetValue$</field>
+    <description>Potential LimeRAT activity detected:  $(win.eventdata.details) added itself to the Registry as a startup program $(win.eventdata.targetObject) to establish persistence.</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+  </rule>
+
+  <!-- Network activity detection -->
+  <rule id="100026" level="12">
+    <if_sid>61605</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\checker netflix\.exe</field>
+    <description>Potential LimeRAT activity detected: Suspicious DNS query made by $(win.eventdata.image).</description>
+    <mitre>
+      <id>T1572</id>
+    </mitre>
+  </rule>
+
+ <!-- DLL process injection -->
+ <rule id="100027" level="12" >
+    <if_sid>61609</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\checker netflix\.exe</field>
+    <field name="win.eventdata.ImageLoaded" type="pcre2">(?i)[c-z]:\\\\Windows\\\\Microsoft\.NET\\\\Framework\\\\.+\\\\mscoreei\.dll</field>
+    <description>Potential LimeRAT activity detected: DLL $(win.eventdata.ImageLoaded) is injected on $(win.system.computer).</description>
+    <mitre>
+      <id>T1055.001</id>
+     </mitre>
+ </rule>
+
+  <!-- LimeRAT service creation -->
+  <rule id="100028" level="12">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\disk</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^CreateKey$</field>
+    <description>Potential LimeRAT activity detected: LimeRAT service $(win.eventdata.targetObject) has been created on $(win.system.computer).</description>
+      <mitre>
+    <id>T1543.003</id>
+      </mitre>
+  </rule>
+
+</group>
+
+<group name="performance_metric,">
+
+<!-- High memory usage -->
+<rule id="100101" level="12">
+  <decoded_as>memory_health</decoded_as>
+  <field type="pcre2" name="memory_usage_%">^(0*[8-9]\d|0*[1-9]\d{2,})</field>
+  <description>Memory usage is high: $(memory_usage_%)%</description>
+  <options>no_full_log</options>
+</rule>
+
+<!-- High CPU usage -->
+<rule id="100102" level="12">
+  <decoded_as>CPU_health</decoded_as>
+  <field type="pcre2" name="cpu_usage_%">^(0*[8-9]\d|0*[1-9]\d{2,})</field>
+  <description>CPU usage is high: $(cpu_usage_%)%</description>
+  <options>no_full_log</options>
+</rule>
+
+<!-- High disk usage -->
+<rule id="100103" level="12">
+  <decoded_as>disk_health</decoded_as>
+  <field type="pcre2" name="disk_usage_%">^(0*[7-9]\d|0*[1-9]\d{2,})</field>
+  <description>Disk space is running low: $(disk_usage_%)%</description>
+  <options>no_full_log</options>
+</rule>
+
+<!-- CPU usage check -->
+<rule id="100104" level="3">
+  <decoded_as>cpu_usage_check</decoded_as>
+  <description>CPU usage metrics: $(totalCPU_used_%) of CPU is in use</description>
+</rule>
+    
+<!-- Load average check -->
+<rule id="100105" level="3">
+  <decoded_as>load_average_check</decoded_as>
+  <description>Load average metrics: $(1min_loadAverage) for last 1 minute</description>
+</rule>
+
+<!-- Memory check -->
+<rule id="100106" level="3">
+  <decoded_as>memory_check</decoded_as>
+  <description>Memory metrics: $(memory_used_bytes) of memory is in use</description>
+</rule>
+
+<!-- Disk check -->
+<rule id="100107" level="3">
+  <decoded_as>disk_check</decoded_as>
+  <description>Disk metrics: $(disk_used) of storage is in use</description>
+</rule>
+
+<!-- Network check -->
+<rule id="100108" level="3">
+  <decoded_as>network_check</decoded_as>
+  <description>Network metrics: $(network_in) inbound | $(network_out) outbound</description>
+</rule>    
+
+</group>
+
+<group name= "syscheck,">
+  <rule id="100029" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+
+  <rule id="100030" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100031" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+
+<!--  YARA scan detects a positive match -->
+  <rule id="100032" level="12">
+    <if_sid>100031</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+
+<!--  Wazuh successfully deletes a malware with a positive match -->
+  <rule id="100033" level="12">
+    <if_sid>100031</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Successfully removed "$(yara_scanned_file)" by active response due to YARA rule $(yara_rule) positive match</description>
+  </rule>
+
+<!--  Wazuh encounters an error when deleting a malware with a positive match -->
+  <rule id="100034" level="12">
+    <if_sid>100031</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Error removing threat: </match>
+    <description>Error removing "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<group name= "syscheck,">
+  <rule id="100024" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+
+  <rule id="100025" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100026" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+
+<!--  YARA scan detects a positive match -->
+  <rule id="100027" level="12">
+    <if_sid>100026</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+
+<!--  Wazuh successfully deletes malware with a positive match -->
+  <rule id="100028" level="12">
+    <if_sid>100026</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Successfully removed "$(yara_scanned_file)" by active response due to YARA rule $(yara_rule) positive match</description>
+  </rule>
+
+<!--  Wazuh encounters an error when deleting malware with a positive match -->
+  <rule id="100029" level="12">
+    <if_sid>100026</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Error removing threat: </match>
+    <description>Error removing "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<!-- File added to the Downloads folder -->
+<group name= "syscheck,">
+  <rule id="100010" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+
+<!-- File modified in the Downloads folder -->
+  <rule id="100011" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100100" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+
+
+<!--  YARA scan detects a positive match -->
+  <rule id="100110" level="7">
+    <if_sid>100100</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>Yara scan result: File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+
+  </rule>
+  <rule id="100120" level="7">
+    <if_sid>100100</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Active Response: Successfully removed "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+
+<!--  Wazuh encounters an error when deleting malware with a positive match -->
+  <rule id="100130" level="12">
+    <if_sid>100100</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Error removing threat: </match>
+    <description>Active Response: Error removing "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<!-- File added to the Downloads folder -->
+<group name= "syscheck,">
+  <rule id="100028" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+<!-- File modified in the Downloads folder -->
+  <rule id="100029" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100194" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+<!--  YARA scan detects a positive match -->
+  <rule id="100195" level="12">
+    <if_sid>100194</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+  <rule id="100196" level="12">
+    <if_sid>100194</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Successfully removed "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<!-- File added to the Downloads folder -->
+<group name= "syscheck,">
+  <rule id="100028" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+<!-- File modified in the Downloads folder -->
+  <rule id="100029" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100063" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+<!--  YARA scan detects a positive match -->
+  <rule id="100064" level="12">
+    <if_sid>100063</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+  <rule id="100065" level="12">
+    <if_sid>100063</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Successfully removed "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<group name="njrat,">
+
+  <!-- Rogue file creation in Temp folder--> 
+  <rule id="100201" level="15">
+    <if_sid>92213</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:(\\\\Users\\\\.+\\\\)</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <description>Suspicious executable file dropped in Temp folder.</description>
+    <mitre>
+      <id>T1105,T1036</id>
+    </mitre>
+  </rule>
+
+  <!-- New process started from Temp folder--> 
+  <rule id="100202" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)[c-z]:(\\\\Users\\\\.+\\\\)</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <description>New process $(win.eventdata.image) started from the Temp folder.</description>
+    <mitre>
+      <id>T1105</id>
+    </mitre>
+  </rule>
+  
+  <!-- Network shell detected-->  
+  <rule id="100203" level="15">
+    <if_sid>92042</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">netsh firewall add allowedprogram</field>
+    <field name="win.eventdata.parentImage" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <description>Netsh command invoked. njRAT activity detected. $(win.eventdata.parentImage) added to allowed programs.</description>
+    <mitre>
+      <id>T1562.004</id>
+    </mitre>
+  </rule>
+  
+  <!-- Persistence detection -->  
+  <rule id="100204" level="15" ignore="600">
+    <if_sid>92300</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <field name="win.eventdata.eventType" type="pcre2">(?i)SetValue</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\[A-Za-z0-9]+</field>
+    <description>njRAT malware detected. njRAT Run key added to HKU registry hive for persistence.</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100205" level="15" ignore="600">
+    <if_sid>92300</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <field name="win.eventdata.eventType" type="pcre2">(?i)SetValue</field>
+    <field name="win.eventdata.targetObject" type="pcre2">(?i)\\\\WOW6432Node\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\\\\[A-Za-z0-9]+</field>
+    <description>njRAT malware detected. njRAT Run key added to HKLM registry hive for persistence.</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+  </rule>
+
+  <rule id="100206" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\\\Programs\\\\Startup\\\\.+\.exe</field>
+    <description>Suspicious activity detected. $(win.eventdata.image) added an executable to Startup programs.</description>
+    <mitre>
+      <id>T1547.001</id>
+    </mitre>
+  </rule>
+
+  <!-- Rogue file creation in root directory--> 
+  <rule id="100207" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)C:\\\\[A-Za-z]+\.[A-Za-z]+</field>
+    <description>$(win.eventdata.image) added a suspicious executable to the root directory.</description>
+    <mitre>
+      <id>T1105</id>
+    </mitre>
+  </rule>
+  
+  <!-- Suspicious network communications --> 
+  <rule id="100208" level="12" ignore="600">
+    <if_sid>61650</if_sid>
+    <field name="win.system.eventID">^22$</field>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\\\AppData\\\\Local\\\\Temp\\\\.+\.exe</field>
+    <description>Suspicious DNS query event. $(win.eventdata.image) queried an external domain ($(win.eventdata.queryName)).</description>
+    <mitre>
+      <id>T1071</id>
+    </mitre>
+  </rule>
+
+  
+  </group>
+  
+  <group name="meduza_stealer,sysmon,">
+
+  <!-- Rogue a.exe file creation -->
+  <rule id="100020" level="12">
+    <if_sid>61617</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)([\\]+?)(a\.exe$)</field>
+    <description>Potential Meduza Stealer activity detected: a.exe created at $(win.eventdata.targetFilename) by $(win.eventdata.image).</description>
+    <mitre>
+        <id>T1036</id>
+    </mitre>
+  </rule>
+
+  <!-- Rogue a.exe:extractor.dll file creation -->
+  <rule id="100021" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)([\\]+?)(a\.exe\:extractor\.dll$)</field>
+    <description>Potential Meduza Stealer activity detected: DLL $(win.eventdata.targetFilename) created by a.exe and injected on $(win.system.computer).</description>
+  </rule>
+
+  <!-- Registry object created -->
+  <rule id="100023" level="12">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:\\\\Windows\\\\system32\\\\(consent\.exe$|svchost\.exe$)</field>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKU\\\\.+\\\\Software\\\\Microsoft\\\\SystemCertificates\\\\CA\\\\Certificates</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^CreateKey$</field>
+    <description>Potential Meduza Stealer activity detected:  $(win.eventdata.image) dumps credentials to $(win.eventdata.targetObject).</description>
+    <mitre>
+        <id>T1130</id>
+    </mitre>
+  </rule>
+
+  <!-- File system permission weakness -->
+  <rule id="100024" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">(?i)[c-z]:\\\\Windows\\\\system32\\\\svchost\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Windows\\\\Prefetch\\\\(EBD41D486952EDDAA670358497F33)(-.+\.pf$)</field>
+    <description>Potential Meduza Stealer activity detected:$(win.eventdata.targetFilename) created by $(win.eventdata.image).</description>
+    <mitre>
+        <id>T1047</id>
+    </mitre>
+  </rule>
+
+ <!-- Suspicious command execution -->
+ <rule id="100025" level="12" >
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.parentCommandLine" type="pcre2">(?i)[c-z]:\\\\Windows\\\\System32\\\\svchost\.exe\s-k\sWerSvcGroup</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)[c-z]:\\\\Windows\\\\system32\\\\WerFault\.exe\s-pss\s-s\s\d+\s-p\s\d+\s-ip\s\d+</field>
+    <description>Potential Meduza Stealer activity detected: suspicious command execution $(win.eventdata.commandLine).</description>
+    <mitre>
+        <id>T1546.008</id>
+     </mitre>
+ </rule>
+
+</group>
+
+<group name="windows,sysmon,">
+ <!-- Remcos RAT drops a file -->
+ <rule id="100030" level="12">
+    <if_sid>92204</if_sid>
+    <match type="pcre2">(eqvkptgalnkxk7m.dll|install.vbs)</match>
+    <description>Possible Remcos RAT detected. File dropped on $(win.system.computer).</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+ </rule>
+ <!-- Remcos RAT creates a registry key -->
+ <rule id="100032" level="10">
+    <if_sid>61614</if_sid>
+    <match type="pcre2">(?i)(Remcos|hpsupport)-[a-zA-Z0-9]*</match>
+    <field name="win.eventdata.eventType" type="pcre2">^CreateKey$</field>
+    <description>Possible Remcos RAT detected. Registry key created on $(win.system.computer).</description>
+    <mitre>
+      <id>T1112</id>
+    </mitre>
+ </rule>
+ <!-- Remcos RAT capturing keystrokes -->
+ <rule id="100034" level="12" >
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\\\AppData\\\\Roaming.+logs.dat</field>
+    <description>Possible Remcos RAT detected. Keystrokes are being captured on $(win.system.computer).</description>
+    <mitre>
+      <id>T1056.001</id>
+     </mitre>
+ </rule>
+</group>
+
+<!-- File added to the Downloads folder -->
+<group name= "syscheck,">
+  <rule id="100028" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+<!-- File modified in the Downloads folder -->
+  <rule id="100029" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100037" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+<!--  YARA scan detects a positive match -->
+  <rule id="100038" level="12">
+    <if_sid>100037</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+  <rule id="100039" level="12">
+    <if_sid>100037</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Successfully removed "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<group name="windows, sysmon,">
+
+  <rule id="100013" level="15">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-k LocalServiceNetworkRestricted -pass</field>
+    <description>Lockbit 3.0 Ransomware Launched.</description>
+    <mitre>
+      <id>T1134</id>
+    </mitre>
+  </rule>
+ 
+  <rule id="100015" level="12" timeframe="100" frequency="2">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\\\\users</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)\.+readme\.txt</field>
+    <description>The file $(win.eventdata.targetFilename) has been created in multiple directories. Possible ransomware activity.</description>
+  </rule>
+
+  <rule id="100029" level="10">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\vmicvss</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^DeleteKey$</field>
+    <field name="win.eventdata.user" type="pcre2" >NT AUTHORITY\\\\SYSTEM</field>
+    <description>Hyper-V volume shadow copy requestor service $(win.eventdata.user) has been deleted on $(win.system.computer). Possible ransomware activity.</description>   
+    <mitre>
+      <id>T1490</id>
+     </mitre>
+  </rule>
+  
+  <rule id="100030" level="10">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\VSS</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^DeleteKey$</field>
+    <field name="win.eventdata.user" type="pcre2" >NT AUTHORITY\\\\SYSTEM</field>
+    <description>Volume shadow copy service $(win.eventdata.user) has been deleted on $(win.system.computer). Possible ransomware activity.</description>
+    <mitre>
+      <id>T1490</id>
+    </mitre>
+  </rule>
+
+  <rule id="100031" level="10">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\System\\\\CurrentControlSet\\\\Services\\\\WinDefend</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^DeleteKey$</field>
+    <field name="win.eventdata.user" type="pcre2" >NT AUTHORITY\\\\SYSTEM</field>
+    <description>Windows defender service $(win.eventdata.user) has been deleted on $(win.system.computer). Possible Ransomware Activity.</description>
+    <mitre>
+      <id>T1562.001</id>
+    </mitre>
+  </rule>
+  
+  <rule id="100032" level="10" ignore="10">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\WINEVT\\\\Channels</field>
+    <field name="win.eventdata.eventType" type="pcre2" >^CreateKey$</field>
+    <description>Multiple Registry Keys created in Event Viewer on $(win.system.computer). Possible Ransomware Activity.</description>
+    <mitre>
+      <id>T1070.001</id>
+    </mitre>
+  </rule>
+  
+</group>
+
+<group name= "syscheck,">
+
+  <rule id="100050" level="7">
+    <if_sid>550</if_sid>
+    <field name="file">C:\\Users\\administrator\\Downloads</field>
+    <description>File modified in C:\Users\administrator\Downloads directory.</description>
+  </rule>
+
+  <rule id="100051" level="7">
+    <if_sid>554</if_sid>
+    <field name="file">C:\\Users\\administrator\\Downloads</field>
+    <description>File added to C:\Users\administrator\Downloads  directory.</description>
+  </rule>
+
+</group>
+
+<group name="yara,">
+
+  <rule id="100052" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+
+  <rule id="100053" level="12">
+    <if_sid>100052</if_sid>
+    <match>wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+
+  <rule id="100054" level="12">
+    <if_sid>100053</if_sid>
+    <match>wazuh-yara: INFO - Scan result: RANSOM_Lockbit_Black_Packer</match>
+    <description>Successfully removed Lockbit 3.0 malware "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+
+</group>
+<!-- File added to the Downloads folder -->
+<group name= "syscheck,">
+  <rule id="100010" level="7">
+    <if_sid>550</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File modified in the Downloads folder.</description>
+  </rule>
+
+<!-- File modified in the Downloads folder -->
+  <rule id="100011" level="7">
+    <if_sid>554</if_sid>
+    <field name="file" type="pcre2">(?i)C:\\Users.+Downloads</field>
+    <description>File added to the Downloads folder.</description>
+  </rule>
+</group>
+
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100012" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+
+
+<!--  YARA scan detects a positive match -->
+  <rule id="100013" level="7">
+    <if_sid>100012</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>Yara scan result: File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+  <rule id="100014" level="7">
+    <if_sid>100012</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Active Response: Successfully removed "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+
+<!--  Wazuh encounters an error when deleting malware with a positive match -->
+  <rule id="100015" level="12">
+    <if_sid>100012</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Error removing threat: </match>
+<description>Active Response: Error removing "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
+
+<group name="blackbit_ransomware,">
+
+  <rule id="100101" level="15">
+    <if_sid>61615</if_sid>
+    <field name="win.eventdata.eventType" type="pcre2" >^SetValue$</field>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKCR\\\\BlackBit\\\\shell\\\\open\\\\command\\\\\(Default\)</field>
+    <description>Changes were made to the registry settings on the $(win.system.computer) endpoint. Blackbit ransomware detected.</description>   
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+  </rule>
+
+  <rule id="100102" level="15">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.eventType" type="pcre2" >^CreateKey$</field>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKCR\\\\BlackBit\\\\shell\\\\open</field>
+    <description>Changes were made to the registry settings on the $(win.system.computer) endpoint. Blackbit ransomware detected.</description>   
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+  </rule>
+
+<!-- Suspicious .bat file creation -->
+  <rule id="100103" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Users\\\\.+\\\\AppData\\\\Roaming\\\\Microsoft\\\\.+\\\\Startup\\\\.*bat</field>
+    <description>The file $(win.eventdata.targetFilename) has been added to the Startup folder by $(win.eventdata.image). Potential Blackbit ransomware activity detected</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+<!-- Suspicious .exe file creation -->
+  <rule id="100104" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[c-z]:\\\\Windows\\\\winlogon.exe</field>
+    <description>The file $(win.eventdata.targetFilename) has been added to the Windows folder by $(win.eventdata.image). Potential Blackbit ransomware activity detected</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+<!-- Suspicious .exe file creation -->
+  <rule id="100105" level="12">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[C-Z]:\\\\ProgramData\\\\.*\\\\Startup\\\\winlogon.exe</field>
+    <description>The file $(win.eventdata.targetFilename) has been added to the startup folder by $(win.eventdata.image) for persistence. Potential Blackbit ransomware detected</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+<!-- Suspicious file creation -->
+  <rule id="100106" level="15">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">C:\\\\Windows\\\\system32\\\\svchost.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[C-Z]:\\\\Windows\\\\System32\\\\Tasks\\\\BlackBit</field>
+    <description>The file $(win.eventdata.targetFilename) created by $(win.eventdata.image). Blackbit ransomware activity detected</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <rule id="100107" level="15">
+    <if_sid>61615</if_sid>
+    <field name="win.eventdata.eventType" type="pcre2">^SetValue$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows NT\\\\CurrentVersion\\\\Schedule\\\\TaskCache\\\\Tree\\\\BlackBit\\\\.*</field>
+    <description>Changes were made to registry settings on $(win.system.computer). Blackbit ransomware detected.</description>   
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+  </rule>
+
+  <rule id="100108" level="15">
+    <if_sid>61614</if_sid>
+    <field name="win.eventdata.eventType" type="pcre2">^CreateKey$</field>
+    <field name="win.eventdata.targetObject" type="pcre2">HKLM\\\\SOFTWARE\\\\Microsoft\\\\Windows NT\\\\CurrentVersion\\\\Schedule\\\\TaskCache\\\\Tree\\\\BlackBit</field>
+    <description>Changes were made to the registry settings on $(win.system.computer). Blackbit ransomware detected.</description>   
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+  </rule>
+
+  <rule id="100109" level="15">
+    <if_sid>92032</if_sid>
+    <field name="win.eventdata.CommandLine" type="pcre2">(?i)schtasks\s\s\/CREATE\s\/SC\sONLOGON\s\/TN\sBlackBit\s\/TR</field>
+    <description>A Task Scheduler entry is created for persistence. Blackbit ransomware activity detected.</description>
+    <mitre>
+      <id>T1087</id>
+      <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="100110" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.CommandLine" type="pcre2">(?i)\/C\snetsh\sadvfirewall\sset\scurrentprofile\sstate\soff</field>
+    <description>Windows Defender Firewall disabled. Possible Blackbit ransomware activity detected.</description>
+    <mitre>
+      <id>T1087</id>
+      <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+  <rule id="100111" level="12">
+    <if_sid>61603</if_sid>
+    <field name="win.eventdata.CommandLine" type="pcre2">(?i)\/C\swmic\sshadowcopy\sdelete</field>
+    <description>Shadow copies have been deleted. Possible Blackbit ransomware activity detected.</description>
+    <mitre>
+      <id>T1087</id>
+      <id>T1059.003</id>
+    </mitre>
+  </rule>
+
+  <!-- Ransom note file creation -->
+  <rule id="100112" level="12" timeframe="100" frequency="2">
+    <if_sid>61613</if_sid>
+    <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetFilename" type="pcre2">(?i)[C-Z]:.*.\\Restore-My-Files.txt</field>
+    <description>The file $(win.eventdata.targetFilename) has been created in multiple directories. Blackbit ransomware detected.</description>
+    <mitre>
+      <id>T1059</id>
+    </mitre>
+  </rule>
+
+  <rule id="100113" level="12">
+    <if_sid>61615</if_sid>
+    <field name="win.eventdata.eventType" type="pcre2">^SetValue$</field>
+     <field name="win.eventdata.image" type="pcre2">\.exe</field>
+    <field name="win.eventdata.targetObject" type="pcre2" >HKLM\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows Defender\\\\.*</field>
+    <description>Windows Defender disabled by making several changes to the registry settings on $(win.system.computer). Potential Blackbit ransomware detected.</description>   
+    <mitre>
+      <id>T1543</id>
+    </mitre>
+  </rule>
+  
+</group>
+
+<!--  Rule for the decoder (yara_decoder) -->
+<group name="yara,">
+  <rule id="100031" level="0">
+    <decoded_as>yara_decoder</decoded_as>
+    <description>Yara grouping rule</description>
+  </rule>
+
+<!--  YARA scan detects a positive match -->
+  <rule id="100032" level="12">
+    <if_sid>100031</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Scan result: </match>
+    <description>File "$(yara_scanned_file)" is a positive match. Yara rule: $(yara_rule)</description>
+  </rule>
+
+<!--  Wazuh successfully deletes malware with a positive match -->
+  <rule id="100033" level="12">
+    <if_sid>100031</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Successfully deleted: </match>
+    <description>Successfully removed "$(yara_scanned_file)" by active response due to YARA rule $(yara_rule) positive match</description>
+  </rule>
+
+<!--  Wazuh encounters an error when deleting malware with a positive match -->
+  <rule id="100034" level="12">
+    <if_sid>100031</if_sid>
+    <match type="pcre2">wazuh-yara: INFO - Error removing threat: </match>
+    <description>Error removing "$(yara_scanned_file)". YARA rule: $(yara_rule)</description>
+  </rule>
+</group>
